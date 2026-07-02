@@ -9,9 +9,16 @@ export const dynamic = 'force-dynamic';
 export default async function TestPage({ params }: { params: { levelId: string } }) {
   const level = await one(
     `SELECT l.*, t.name as test_name, t.slug as test_slug, t.short_name
-     FROM levels l JOIN tests t ON t.id = l.test_id WHERE l.id = $1`,
+     FROM levels l JOIN tests t ON t.id=l.test_id WHERE l.id=$1`,
     [params.levelId]
   ).catch(() => null);
+
+  // Get next level
+  const nextLevel = level ? await one(
+    `SELECT l.id, l.level_no, l.title FROM levels l
+     WHERE l.test_id=$1 AND l.level_no=$2`,
+    [level.test_id, level.level_no + 1]
+  ).catch(() => null) : null;
 
   let questions: any[] = await query(
     'SELECT * FROM questions WHERE level_id=$1 AND is_verified=true ORDER BY random() LIMIT 20',
@@ -23,7 +30,6 @@ export default async function TestPage({ params }: { params: { levelId: string }
   return (
     <StudentShell>
       <div className="max-w-2xl mx-auto">
-        {/* Breadcrumb */}
         {level && (
           <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
             <Link href="/exams" className="hover:text-white">Exams</Link>
@@ -41,10 +47,16 @@ export default async function TestPage({ params }: { params: { levelId: string }
           <h1 className="text-4xl font-black">
             {level ? `${level.short_name} — Level ${level.level_no} Test` : 'Level Test'}
           </h1>
-          <p className="text-slate-400 mt-1">{questions.length} questions • Pass with 85% to unlock next level</p>
+          <p className="text-slate-400 mt-1">{questions.length} randomized questions • Pass with 85% to unlock next level</p>
         </div>
 
-        <TestClient questions={questions} levelId={params.levelId} />
+        <TestClient
+          questions={questions}
+          levelId={params.levelId}
+          nextLevelId={nextLevel?.id || null}
+          nextLevelTitle={nextLevel ? `Level ${nextLevel.level_no}: ${nextLevel.title}` : null}
+          examSlug={level?.test_slug || 'hat'}
+        />
       </div>
     </StudentShell>
   );
