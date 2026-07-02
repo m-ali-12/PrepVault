@@ -36,3 +36,16 @@ INSERT INTO topics(level_id,title,slug,category,order_no) SELECT id,'Sentence Co
 INSERT INTO lessons(topic_id,title,content_md,source_reference) SELECT id,'Sentence completion strategy','Read the full sentence first to understand the overall meaning and tone, then check which option logically and grammatically fits both blanks.','Quick HAT Guide aligned concept' FROM topics WHERE slug='sentence-completion';
 INSERT INTO questions(test_id,level_id,topic_id,question_text,option_a,option_b,option_c,option_d,correct_option,explanation,difficulty,source_reference,is_verified) SELECT t.id,l.id,tp.id,'Despite his ____, he remained calm and ____.','anger / composed','joy / nervous','fear / panicked','wealth / poor','A','The contrast word despite signals an opposite pairing: anger followed by staying composed.','medium','Quick HAT Guide aligned',true FROM tests t,levels l,topics tp WHERE t.slug='hat' AND l.test_id=t.id AND l.level_no=3 AND tp.level_id=l.id AND tp.slug='sentence-completion';
 CREATE OR REPLACE VIEW dashboard_level_view AS SELECT l.id level_id,t.slug test_slug,t.short_name,l.level_no,l.title,l.description,l.passing_percentage,COUNT(q.id) FILTER(WHERE q.is_verified=true) verified_questions FROM levels l JOIN tests t ON t.id=l.test_id LEFT JOIN questions q ON q.level_id=l.id GROUP BY l.id,t.slug,t.short_name,l.level_no,l.title,l.description,l.passing_percentage ORDER BY l.level_no;
+
+-- Level completion tracking
+CREATE TABLE IF NOT EXISTS level_completions(
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  level_id UUID REFERENCES levels(id) ON DELETE CASCADE,
+  score INT NOT NULL,
+  correct INT,
+  total INT,
+  passed BOOLEAN DEFAULT false,
+  completed_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(user_id, level_id)
+);
